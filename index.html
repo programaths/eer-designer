@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Graphviz test</title>
+    <link rel="stylesheet" href="style.css"/>
+    <script src="parser.js" type="application/javascript"></script>
+    <script src="viz.js" type="application/javascript"></script>
+    <script src="underscore-min.js" type="application/javascript"></script>
+</head>
+<body>
+    <div  class="flex">
+        <div>
+        <textarea id="code" rows="40" cols="80">entity foo{
+      a : int
+    }
+
+    entity bar{
+      b : int
+    }
+
+    relation ok "is linked to"
+
+    foo -- ok -> bar</textarea>
+        </div>
+        <div id="result">
+
+        </div>
+    </div>
+    <script type="application/javascript">
+        var doWork=document.getElementById("doWork");
+        var code=document.getElementById("code");
+        var result=document.getElementById("result");
+        
+        function updateSVG(){
+            result.innerHTML="";
+            console.log(parser.parse(code.value));
+            var image = Viz(parser.parse(code.value), { format: "svg", engine:"dot" } );
+            result.innerHTML=image;
+        }
+        
+        updateSVG();
+        
+        code.addEventListener("keyup",_.debounce(updateSVG,100));
+    </script>
+</body>
+</html>

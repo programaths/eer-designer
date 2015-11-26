@@ -1,0 +1,126 @@
+/* Compile using pegJS */
+{
+    var entities={};
+    var relations={};
+    var connections=[];
+
+    function flattenObject(ob) {
+      var toReturn = {};
+
+      for (var i in ob) {
+          if (!ob.hasOwnProperty(i)) continue;
+
+          if ((typeof ob[i]) == 'object') {
+              var flatObject = flattenObject(ob[i]);
+              for (var x in flatObject) {
+                  if (!flatObject.hasOwnProperty(x)) continue;
+
+                  toReturn[x] = flatObject[x];
+              }
+          } else {
+              toReturn[i] = ob[i];
+          }
+      }
+      return toReturn;
+	}
+
+    function createGVRelation(name,label){
+    	return `${name}[shape=diamond label=<<table border="0">
+  				<tr><td>${label}</td></tr>
+  				</table>>];`
+    }
+
+    function createGVEntity(name,fields){
+    	var fs=createGVFields(fields);
+    	return `
+        ${name}[shape=none;label=<
+        <table border="1" cellspacing="0" cellborder="1">
+          <tr><td sides="b" colspan="2">${name}</td></tr>
+          ${fs}
+        </table>
+        >];
+        `
+    }
+
+    function createGVFields(fields){
+    	var fs="";
+    	for(var i in fields){
+        	fs=fs+'<tr><td border="0">-</td><td border="0" align="left">'+i+'</td></tr>'+"\n"
+        }
+        return fs;
+    }
+
+    function createGVConnections(connections){
+    	var cs=[];
+        for(var i in connections){
+        	var con=connections[i];
+            cs.push(con.from+"->"+con.via+"->"+con.to+";");
+        }
+        return cs.join("");
+    }
+
+    function createGVFile(){
+    	var gvContent="digraph G {\n";
+    	for(var i in relations){
+        	gvContent+=createGVRelation(i,relations[i].label)+"\n";
+        }
+
+        gvContent+="\n";
+
+        for(var i in entities){
+        	gvContent+=createGVEntity(i,entities[i])+"\n";
+        }
+
+        gvContent+="\n";
+
+        gvContent+=createGVConnections(connections);
+
+        gvContent+="\n";
+
+        return gvContent+"}";
+    }
+
+
+
+
+}
+
+
+Diagram = EntityList ("\n" _? RelationList ("\n" _? ConnectionList _? )? )? _? {
+//return {entities,relations,connections};
+return createGVFile()
+}
+
+Entity = "entity"i _ name:id _? '{' f:EntityBody? '}' { entities[name]=f; return null }
+EntityBody =  _? f:FieldList _? "\n"? { return f; }
+EntityList = _? Entity "\n" _? EntityList / _? Entity
+
+Relation = "relation"i _ name:id _ '"' label:label '"' { relations[name]={label} }
+RelationList = _? Relation "\n" _? RelationList / _? Relation
+
+Field = name:id _ ':' _ type:id { return {name,type} }
+FieldList = _? f1:Field "\n" _? f2:FieldList {
+	let v={};
+    let i;
+    v=flattenObject(f2);
+    v[f1.name]=f1.type;
+    return v ;
+} / _? f:Field {var v={};v[f.name]=f.type;return v }
+
+Connection = from:id ' '? '--' ' '? via:id &{ if(relations[via]){return true}else{error("The relation "+via+" is not defined")} } ' '? '->' ' '? to:id {
+    return {from,to,via}
+}
+ConnectionList = _? c:Connection "\n" _? r:ConnectionList {
+	connections.push(c);
+    for(var i in r){
+    	connections.push(r[i]);
+    }
+} / _? c:Connection {
+	connections.push(c);
+}
+
+id = id1:[a-z] id2:[a-z0-9]i* { return  id1+id2.join("") }
+
+label = label:[ a-z0-9_]i+ { return label.join("") }
+
+_ = [ \n]+ { return null }
